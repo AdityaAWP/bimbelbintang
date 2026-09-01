@@ -123,25 +123,21 @@ const History = () => {
     if (att) {
       setEditingAttendance(att);
       setForm({
-        date: att.date || new Date().toISOString().split('T')[0],
         tutor_id: att.tutor_id || '',
         student_id: att.student_id || '',
         les_category_id: att.les_category_id || '',
+        date: att.date || new Date().toISOString().split('T')[0],
         subject: att.subject || '',
-        start_time: att.start_time || '15:00',
-        end_time: att.end_time || '16:30',
         notes: att.notes || ''
       });
     } else {
       setEditingAttendance(null);
       setForm({
+        tutor_id: tutors.length > 0 ? tutors[0].id : '',
+        student_id: students.length > 0 ? students[0].id : '',
+        les_category_id: categories.length > 0 ? categories[0].id : '',
         date: new Date().toISOString().split('T')[0],
-        tutor_id: tutors[0]?.id || '',
-        student_id: students[0]?.id || '',
-        les_category_id: categories[0]?.id || '',
         subject: '',
-        start_time: '15:00',
-        end_time: '16:30',
         notes: ''
       });
     }
@@ -358,34 +354,55 @@ const History = () => {
         ) : attendances.length === 0 ? (
           <p style={{ color: '#64748b' }}>Tidak ada data riwayat absensi yang ditemukan.</p>
         ) : (
-          <div className="table-container">
-            <table className="custom-table">
-              <thead>
-                <tr>
-                  <th>Tanggal</th>
-                  <th>Nama Guru</th>
-                  <th>Nama Murid</th>
-                  <th>Kategori Les</th>
-                  <th>Mata Pelajaran</th>
-                  <th>Durasi</th>
-                  <th>Catatan</th>
-                  {isAdmin && <th style={{ textAlign: 'center' }}>Aksi</th>}
-                </tr>
-              </thead>
-              <tbody>
-                {attendances.map((att) => (
-                  <tr key={att.id}>
-                    <td style={{ whiteSpace: 'nowrap', fontWeight: 500 }}>{att.date}</td>
-                    <td style={{ fontWeight: 600, color: '#7c3aed' }}>{att.tutor?.name || '-'}</td>
-                    <td style={{ fontWeight: 600, color: '#2563eb' }}>{att.student?.name || '-'}</td>
-                    <td>
-                      <span className="badge badge-indigo">
-                        {att.les_category?.name || att.lesCategory?.name || 'Les'}
-                      </span>
-                    </td>
-                    <td>{att.subject || '-'}</td>
-                    <td>{att.duration_minutes} Menit</td>
-                    <td style={{ fontSize: '0.825rem', color: '#64748b' }}>{att.notes || '-'}</td>
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.75rem' }}>
+              <span className="badge badge-emerald" style={{ fontSize: '0.825rem', padding: '0.4rem 0.8rem' }}>
+                💵 Total Gaji Guru Periode Ini: Rp {attendances.reduce((sum, item) => {
+                  const fee = (item.tutor_fee_per_session && parseFloat(item.tutor_fee_per_session) > 0)
+                    ? parseFloat(item.tutor_fee_per_session)
+                    : (item.lesCategory?.tutor_fee_per_session || item.les_category?.tutor_fee_per_session || 15000);
+                  return sum + parseFloat(fee);
+                }, 0).toLocaleString('id-ID')}
+              </span>
+            </div>
+
+            <div className="table-container">
+              <table className="custom-table">
+                <thead>
+                  <tr>
+                    <th>Tanggal</th>
+                    <th>Nama Guru</th>
+                    <th>Nama Murid</th>
+                    <th>Kategori Les</th>
+                    <th>Mata Pelajaran</th>
+                    <th>Durasi</th>
+                    <th>Gaji Guru (Honor)</th>
+                    <th>Catatan</th>
+                    {isAdmin && <th style={{ textAlign: 'center' }}>Aksi</th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {attendances.map((att) => {
+                    const tutorFee = (att.tutor_fee_per_session && parseFloat(att.tutor_fee_per_session) > 0)
+                      ? parseFloat(att.tutor_fee_per_session)
+                      : parseFloat(att.lesCategory?.tutor_fee_per_session || att.les_category?.tutor_fee_per_session || 15000);
+
+                    return (
+                      <tr key={att.id}>
+                        <td style={{ whiteSpace: 'nowrap', fontWeight: 500 }}>{att.date}</td>
+                        <td style={{ fontWeight: 600, color: '#7c3aed' }}>{att.tutor?.name || '-'}</td>
+                        <td style={{ fontWeight: 600, color: '#2563eb' }}>{att.student?.name || '-'}</td>
+                        <td>
+                          <span className="badge badge-indigo">
+                            {att.les_category?.name || att.lesCategory?.name || 'Les'}
+                          </span>
+                        </td>
+                        <td>{att.subject || '-'}</td>
+                        <td>{att.duration_minutes} Menit</td>
+                        <td style={{ fontWeight: 700, color: '#059669' }}>
+                          Rp {tutorFee.toLocaleString('id-ID')}
+                        </td>
+                        <td style={{ fontSize: '0.825rem', color: '#64748b' }}>{att.notes || '-'}</td>
                     {isAdmin && (
                       <td style={{ textAlign: 'center' }}>
                         <div style={{ display: 'inline-flex', gap: '0.4rem' }}>
@@ -407,10 +424,12 @@ const History = () => {
                         </div>
                       </td>
                     )}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </div>
@@ -420,10 +439,67 @@ const History = () => {
         <Modal
           isOpen={showFormModal}
           onClose={() => setShowFormModal(false)}
-          title={editingAttendance ? '✏️ Edit Data Riwayat Absensi Les' : '➕ Tambah Riwayat Absensi Les Baru'}
+          title={editingAttendance ? '✏️ Edit Data Riwayat Absensi Les' : '➕ Catat Presensi Mengajar Guru'}
         >
           <form onSubmit={handleSaveForm}>
             <div className="grid-2">
+              {/* Input Nama Guru */}
+              <div className="form-group">
+                <label className="form-label">Nama Guru Les *</label>
+                <select
+                  className="form-select"
+                  value={form.tutor_id}
+                  onChange={(e) => setForm({ ...form, tutor_id: e.target.value })}
+                  required
+                >
+                  <option value="">-- Pilih Guru --</option>
+                  {tutors.map(t => (
+                    <option key={t.id} value={t.id}>
+                      {t.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Input Murid */}
+              <div className="form-group">
+                <label className="form-label">Murid Les *</label>
+                <select
+                  className="form-select"
+                  value={form.student_id}
+                  onChange={(e) => setForm({ ...form, student_id: e.target.value })}
+                  required
+                >
+                  <option value="">-- Pilih Murid --</option>
+                  {students.map(s => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="grid-2">
+              {/* Kategori Les (PIB, PIH, REG) */}
+              <div className="form-group">
+                <label className="form-label">Kategori Tipe Les *</label>
+                <select
+                  className="form-select"
+                  value={form.les_category_id}
+                  onChange={(e) => setForm({ ...form, les_category_id: e.target.value })}
+                  required
+                >
+                  <option value="">-- Pilih Kategori --</option>
+                  {categories.map(c => (
+                    <option key={c.id} value={c.id}>
+                      [{c.code}] {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Tanggal */}
               <div className="form-group">
                 <label className="form-label">Tanggal Mengajar *</label>
                 <input
@@ -434,102 +510,32 @@ const History = () => {
                   required
                 />
               </div>
-
-              <div className="form-group">
-                <label className="form-label">Kategori Tipe Les *</label>
-                <select
-                  className="form-select"
-                  value={form.les_category_id}
-                  onChange={(e) => setForm({ ...form, les_category_id: e.target.value })}
-                  required
-                >
-                  <option value="">Pilih Kategori Les</option>
-                  {categories.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.code} - {c.name} ({c.default_duration} mnt)
-                    </option>
-                  ))}
-                </select>
-              </div>
             </div>
 
-            <div className="grid-2">
-              <div className="form-group">
-                <label className="form-label">Pilih Guru Les *</label>
-                <select
-                  className="form-select"
-                  value={form.tutor_id}
-                  onChange={(e) => setForm({ ...form, tutor_id: e.target.value })}
-                  required
-                >
-                  <option value="">Pilih Guru Les</option>
-                  {tutors.map((t) => (
-                    <option key={t.id} value={t.id}>{t.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Pilih Murid Les *</label>
-                <select
-                  className="form-select"
-                  value={form.student_id}
-                  onChange={(e) => setForm({ ...form, student_id: e.target.value })}
-                  required
-                >
-                  <option value="">Pilih Murid Les</option>
-                  {students.map((s) => (
-                    <option key={s.id} value={s.id}>{s.name}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className="grid-3">
-              <div className="form-group">
-                <label className="form-label">Mata Pelajaran (Opsional)</label>
-                <input
-                  type="text"
-                  className="form-input"
-                  placeholder="Misal: Matematika SMA"
-                  value={form.subject}
-                  onChange={(e) => setForm({ ...form, subject: e.target.value })}
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Jam Mulai</label>
-                <input
-                  type="time"
-                  className="form-input"
-                  value={form.start_time}
-                  onChange={(e) => setForm({ ...form, start_time: e.target.value })}
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Jam Selesai</label>
-                <input
-                  type="time"
-                  className="form-input"
-                  value={form.end_time}
-                  onChange={(e) => setForm({ ...form, end_time: e.target.value })}
-                />
-              </div>
+            {/* Mata Pelajaran (Optional) */}
+            <div className="form-group">
+              <label className="form-label">Mata Pelajaran (Opsional)</label>
+              <input
+                type="text"
+                className="form-input"
+                placeholder="Contoh: Matematika, Fisika (opsional)"
+                value={form.subject}
+                onChange={(e) => setForm({ ...form, subject: e.target.value })}
+              />
             </div>
 
             <div className="form-group">
-              <label className="form-label">Catatan Pembelajaran (Opsional)</label>
-              <textarea
+              <label className="form-label">Catatan Sesi / Evaluasi (Opsional)</label>
+              <input
+                type="text"
                 className="form-input"
-                rows="3"
-                placeholder="Misal: Membahas materi Trigonometri bab 2..."
+                placeholder="Catatan hasil les..."
                 value={form.notes}
                 onChange={(e) => setForm({ ...form, notes: e.target.value })}
-              ></textarea>
+              />
             </div>
 
-            <div style={{ marginTop: '1.25rem', display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
+            <div style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
               <button
                 type="button"
                 onClick={() => setShowFormModal(false)}
@@ -543,7 +549,7 @@ const History = () => {
                 className="btn btn-primary"
                 disabled={saving}
               >
-                {saving ? 'Menyimpan...' : (editingAttendance ? 'Simpan Perubahan' : 'Tambah Riwayat')}
+                {saving ? 'Simpan Data...' : (editingAttendance ? 'Simpan Perubahan' : 'Simpan Presensi')}
               </button>
             </div>
           </form>
