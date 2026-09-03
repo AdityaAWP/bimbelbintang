@@ -282,12 +282,14 @@ const History = () => {
             >
               👨‍🏫 Riwayat Absensi Guru Les
             </button>
-            <button
-              className={`tab-btn ${historyTab === 'students' ? 'active' : ''}`}
-              onClick={() => setHistoryTab('students')}
-            >
-              🎓 Riwayat Absensi Murid Les
-            </button>
+            {isAdmin && (
+              <button
+                className={`tab-btn ${historyTab === 'students' ? 'active' : ''}`}
+                onClick={() => setHistoryTab('students')}
+              >
+                🎓 Riwayat Absensi Murid Les
+              </button>
+            )}
           </div>
 
           {/* Filters Bar */}
@@ -355,16 +357,18 @@ const History = () => {
           <p style={{ color: '#64748b' }}>Tidak ada data riwayat absensi yang ditemukan.</p>
         ) : (
           <div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.75rem' }}>
-              <span className="badge badge-emerald" style={{ fontSize: '0.825rem', padding: '0.4rem 0.8rem' }}>
-                💵 Total Gaji Guru Periode Ini: Rp {attendances.reduce((sum, item) => {
-                  const fee = (item.tutor_fee_per_session && parseFloat(item.tutor_fee_per_session) > 0)
-                    ? parseFloat(item.tutor_fee_per_session)
-                    : (item.lesCategory?.tutor_fee_per_session || item.les_category?.tutor_fee_per_session || 15000);
-                  return sum + parseFloat(fee);
-                }, 0).toLocaleString('id-ID')}
-              </span>
-            </div>
+            {isAdmin && (
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.75rem' }}>
+                <span className="badge badge-emerald" style={{ fontSize: '0.825rem', padding: '0.4rem 0.8rem' }}>
+                  💵 Total Gaji Guru Periode Ini: Rp {attendances.reduce((sum, item) => {
+                    const fee = (item.tutor_fee_per_session && parseFloat(item.tutor_fee_per_session) > 0)
+                      ? parseFloat(item.tutor_fee_per_session)
+                      : (item.lesCategory?.tutor_fee_per_session || item.les_category?.tutor_fee_per_session || 15000);
+                    return sum + parseFloat(fee);
+                  }, 0).toLocaleString('id-ID')}
+                </span>
+              </div>
+            )}
 
             <div className="table-container">
               <table className="custom-table">
@@ -376,7 +380,7 @@ const History = () => {
                     <th>Kategori Les</th>
                     <th>Mata Pelajaran</th>
                     <th>Durasi</th>
-                    <th>Gaji Guru (Honor)</th>
+                    {isAdmin && <th>Gaji Guru (Honor)</th>}
                     <th>Catatan</th>
                     {isAdmin && <th style={{ textAlign: 'center' }}>Aksi</th>}
                   </tr>
@@ -399,9 +403,11 @@ const History = () => {
                         </td>
                         <td>{att.subject || '-'}</td>
                         <td>{att.duration_minutes} Menit</td>
-                        <td style={{ fontWeight: 700, color: '#059669' }}>
-                          Rp {tutorFee.toLocaleString('id-ID')}
-                        </td>
+                        {isAdmin && (
+                          <td style={{ fontWeight: 700, color: '#059669' }}>
+                            Rp {tutorFee.toLocaleString('id-ID')}
+                          </td>
+                        )}
                         <td style={{ fontSize: '0.825rem', color: '#64748b' }}>{att.notes || '-'}</td>
                     {isAdmin && (
                       <td style={{ textAlign: 'center' }}>

@@ -2,8 +2,10 @@ import React, { useEffect, useState } from 'react';
 import apiClient from '../api/client';
 import StatCard from '../components/StatCard';
 import { Users, UserCheck, CalendarCheck, Wallet, Clock, BookOpen, Sparkles, AlertCircle } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 const Dashboard = () => {
+  const { isAdmin } = useAuth();
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState(null);
@@ -84,8 +86,8 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Top 4 Stat Cards */}
-      <div className="grid-4">
+      {/* Top Stat Cards */}
+      <div className={isAdmin ? 'grid-4' : 'grid-3'}>
         <StatCard
           title="Total Murid Aktif"
           value={totalActiveStudents}
@@ -107,13 +109,15 @@ const Dashboard = () => {
           color="emerald"
           subtext="Total pertemuan mengajar"
         />
-        <StatCard
-          title="Pemasukan Bulan Ini"
-          value={`Rp ${Number(summary?.income_this_month || 0).toLocaleString('id-ID')}`}
-          icon={Wallet}
-          color="amber"
-          subtext="Rangkuman keuangan les"
-        />
+        {isAdmin && (
+          <StatCard
+            title="Pemasukan Bulan Ini"
+            value={`Rp ${Number(summary?.income_this_month || 0).toLocaleString('id-ID')}`}
+            icon={Wallet}
+            color="amber"
+            subtext="Rangkuman keuangan les"
+          />
+        )}
       </div>
 
       {/* Rangkuman Sesi Les per Kategori Tipe Les */}
