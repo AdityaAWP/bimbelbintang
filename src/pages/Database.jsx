@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import apiClient from '../api/client';
 import Modal from '../components/Modal';
-import { Database as DbIcon, Plus, Edit2, Trash2, Tag, BookOpen, ShieldAlert, KeyRound, UserCheck, AlertTriangle, CheckCircle } from 'lucide-react';
+import { Database as DbIcon, Plus, Edit2, Trash2, Tag, BookOpen, ShieldAlert, KeyRound, UserCheck, AlertTriangle, CheckCircle, Eye, EyeOff } from 'lucide-react';
 
 const Database = () => {
   const [activeTab, setActiveTab] = useState('students'); // 'students', 'tutors', 'categories', 'teachers'
@@ -10,6 +10,7 @@ const Database = () => {
   const [categories, setCategories] = useState([]);
   const [teacherAccounts, setTeacherAccounts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showPassword, setShowPassword] = useState(false);
 
   // Delete Confirmation Modal & Alert Banner State
   const [deleteConfirm, setDeleteConfirm] = useState({
@@ -39,8 +40,7 @@ const Database = () => {
     name: '',
     phone: '',
     nip_code: '',
-    specialization: '',
-    category_rates: {}
+    specialization: ''
   });
 
   // Category Form Modal State
@@ -74,12 +74,8 @@ const Database = () => {
         const res = await apiClient.getWithCache('/database/students');
         if (res.data?.success) setStudents(res.data.data);
       } else if (activeTab === 'tutors') {
-        const [tutorsRes, catsRes] = await Promise.all([
-          apiClient.getWithCache('/database/tutors'),
-          apiClient.getWithCache('/database/les-categories')
-        ]);
-        if (tutorsRes.data?.success) setTutors(tutorsRes.data.data);
-        if (catsRes.data?.success) setCategories(catsRes.data.data);
+        const res = await apiClient.getWithCache('/database/tutors');
+        if (res.data?.success) setTutors(res.data.data);
       } else if (activeTab === 'categories') {
         const res = await apiClient.getWithCache('/database/les-categories');
         if (res.data?.success) setCategories(res.data.data);
@@ -137,16 +133,11 @@ const Database = () => {
   const handleOpenTutorModal = (tutor = null) => {
     if (tutor) {
       setEditingTutor(tutor);
-      const rates = {};
-      (tutor.category_rates || []).forEach((r) => {
-        rates[r.les_category_id] = r.rate_per_session;
-      });
       setTutorForm({
         name: tutor.name || '',
         phone: tutor.phone || '',
         nip_code: tutor.nip_code || '',
-        specialization: tutor.specialization || '',
-        category_rates: rates
+        specialization: tutor.specialization || ''
       });
     } else {
       setEditingTutor(null);
@@ -154,8 +145,7 @@ const Database = () => {
         name: '',
         phone: '',
         nip_code: `G${new Date().getFullYear()}${Math.floor(100 + Math.random() * 900)}`,
-        specialization: '',
-        category_rates: {}
+        specialization: ''
       });
     }
     setShowTutorModal(true);
@@ -164,17 +154,10 @@ const Database = () => {
   const handleSaveTutor = async (e) => {
     e.preventDefault();
     try {
-      const payload = {
-        ...tutorForm,
-        category_rates: categories.map((c) => ({
-          les_category_id: c.id,
-          rate_per_session: parseFloat(tutorForm.category_rates[c.id]) || 0
-        }))
-      };
       if (editingTutor) {
-        await apiClient.put(`/database/tutors/${editingTutor.id}`, payload);
+        await apiClient.put(`/database/tutors/${editingTutor.id}`, tutorForm);
       } else {
-        await apiClient.post('/database/tutors', payload);
+        await apiClient.post('/database/tutors', tutorForm);
       }
       setShowTutorModal(false);
       fetchData();
@@ -191,7 +174,8 @@ const Database = () => {
         code: cat.code,
         name: cat.name,
         default_duration: cat.default_duration,
-        fee_per_session: cat.fee_per_session
+        fee_per_session: cat.fee_per_session,
+        tutor_fee_per_session: cat.tutor_fee_per_session || 15000
       });
     } else {
       setEditingCat(null);
@@ -199,7 +183,8 @@ const Database = () => {
         code: '',
         name: '',
         default_duration: 90,
-        fee_per_session: 15000
+        fee_per_session: 15000,
+        tutor_fee_per_session: 15000
       });
     }
     setShowCatModal(true);
@@ -222,12 +207,13 @@ const Database = () => {
 
   // Teacher Login Account Handlers
   const handleOpenTeacherModal = (account = null) => {
+    setShowPassword(false);
     if (account) {
       setEditingTeacher(account);
       setTeacherForm({
         name: account.name || '',
         email: account.email || '',
-        password: '',
+        password: 'password123',
         phone: account.phone || ''
       });
     } else {
@@ -478,12 +464,14 @@ const Database = () => {
                     <th>Nama Kategori Les</th>
                     <th>Durasi Waktu</th>
                     <th>Tarif Biaya Murid</th>
+                    <th>Tarif Gaji Guru</th>
                     <th style={{ textAlign: 'center' }}>Aksi</th>
                   </tr>
                 </thead>
                 <tbody>
                   {categories.map((c) => {
                     const fee = parseFloat(c.fee_per_session || 0);
+                    const tutorFee = parseFloat(c.tutor_fee_per_session || 15000);
 
                     return (
                       <tr key={c.id}>
@@ -494,6 +482,9 @@ const Database = () => {
                         <td>{c.default_duration} Menit</td>
                         <td style={{ fontWeight: 700, color: '#059669' }}>
                           Rp {fee.toLocaleString('id-ID')}
+                        </td>
+                        <td style={{ fontWeight: 700, color: '#7c3aed' }}>
+                          Rp {tutorFee.toLocaleString('id-ID')}
                         </td>
                         <td style={{ textAlign: 'center' }}>
                           <div style={{ display: 'inline-flex', gap: '0.4rem' }}>
@@ -685,35 +676,6 @@ const Database = () => {
             </div>
           </div>
 
-          <div className="form-group" style={{ marginTop: '0.75rem' }}>
-            <label className="form-label">Tarif Gaji Guru per Kategori (Opsional)</label>
-            <p style={{ fontSize: '0.8rem', color: '#64748b', margin: '0 0 0.6rem 0' }}>
-              Kosongkan / isi 0 untuk memakai tarif default kategori. Isi angka untuk menetapkan tarif khusus guru ini pada kategori tersebut.
-            </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              {categories.map((c) => (
-                <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                  <span className="badge badge-indigo" style={{ minWidth: '60px', textAlign: 'center' }}>{c.code}</span>
-                  <span style={{ flex: 1, fontSize: '0.85rem', color: '#334155' }}>{c.name}</span>
-                  <input
-                    type="number"
-                    className="form-input"
-                    style={{ maxWidth: '160px' }}
-                    placeholder={`Default Rp ${parseFloat(c.tutor_fee_per_session || 15000).toLocaleString('id-ID')}`}
-                    value={tutorForm.category_rates[c.id] ?? ''}
-                    onChange={(e) => setTutorForm({
-                      ...tutorForm,
-                      category_rates: { ...tutorForm.category_rates, [c.id]: e.target.value }
-                    })}
-                  />
-                </div>
-              ))}
-              {categories.length === 0 && (
-                <p style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Belum ada kategori les. Tambahkan dulu di tab Kategori Tipe Les.</p>
-              )}
-            </div>
-          </div>
-
           <div style={{ marginTop: '1.25rem', display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
             <button type="button" onClick={() => setShowTutorModal(false)} className="btn btn-secondary">
               Batal
@@ -770,16 +732,29 @@ const Database = () => {
             </select>
           </div>
 
-          <div className="form-group" style={{ marginTop: '0.75rem' }}>
-            <label className="form-label">Tarif Biaya Les Murid / Sesi (Rp) *</label>
-            <input
-              type="number"
-              className="form-input"
-              placeholder="Contoh: 30000"
-              value={catForm.fee_per_session}
-              onChange={(e) => setCatForm({ ...catForm, fee_per_session: parseFloat(e.target.value) })}
-              required
-            />
+          <div className="grid-2" style={{ marginTop: '0.75rem' }}>
+            <div className="form-group">
+              <label className="form-label">Tarif Biaya Les Murid / Sesi (Rp) *</label>
+              <input
+                type="number"
+                className="form-input"
+                placeholder="Contoh: 30000"
+                value={catForm.fee_per_session}
+                onChange={(e) => setCatForm({ ...catForm, fee_per_session: parseFloat(e.target.value) })}
+                required
+              />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Tarif Biaya Gaji Guru / Sesi (Rp) *</label>
+              <input
+                type="number"
+                className="form-input"
+                placeholder="Contoh: 15000"
+                value={catForm.tutor_fee_per_session}
+                onChange={(e) => setCatForm({ ...catForm, tutor_fee_per_session: parseFloat(e.target.value) })}
+                required
+              />
+            </div>
           </div>
 
           <div style={{ marginTop: '1.25rem', display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
@@ -827,16 +802,38 @@ const Database = () => {
 
             <div className="form-group">
               <label className="form-label">
-                Password {editingTeacher ? '(Kosongkan jika tidak diubah)' : '*'}
+                Password *
               </label>
-              <input
-                type="password"
-                className="form-input"
-                placeholder="••••••••"
-                value={teacherForm.password}
-                onChange={(e) => setTeacherForm({ ...teacherForm, password: e.target.value })}
-                required={!editingTeacher}
-              />
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  className="form-input"
+                  style={{ paddingRight: '2.5rem' }}
+                  placeholder="••••••••"
+                  value={teacherForm.password}
+                  onChange={(e) => setTeacherForm({ ...teacherForm, password: e.target.value })}
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  style={{
+                    position: 'absolute',
+                    right: '0.6rem',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: '#64748b',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '0.2rem'
+                  }}
+                  title={showPassword ? 'Sembunyikan Password' : 'Tampilkan Password'}
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
             </div>
           </div>
 

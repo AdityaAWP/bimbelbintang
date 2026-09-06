@@ -2,10 +2,8 @@ import React, { useEffect, useState } from 'react';
 import apiClient from '../api/client';
 import Modal from '../components/Modal';
 import { ClipboardCheck, Plus, Calendar, Clock, User, BookOpen, AlertCircle } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
 
 const Attendance = () => {
-  const { isAdmin } = useAuth();
   const [attendances, setAttendances] = useState([]);
   const [students, setStudents] = useState([]);
   const [tutors, setTutors] = useState([]);
@@ -144,7 +142,7 @@ const Attendance = () => {
                   <th>Kategori Les</th>
                   <th>Mata Pelajaran</th>
                   <th>Durasi</th>
-                  {isAdmin && <th>Tarif per Sesi</th>}
+                  <th>Tarif per Sesi</th>
                   <th>Catatan</th>
                 </tr>
               </thead>
@@ -163,11 +161,9 @@ const Attendance = () => {
                       </td>
                       <td>{att.subject || '-'}</td>
                       <td>{att.duration_minutes} Menit</td>
-                      {isAdmin && (
-                        <td style={{ fontWeight: 700, color: '#059669' }}>
-                          Rp {fee.toLocaleString('id-ID')}
-                        </td>
-                      )}
+                      <td style={{ fontWeight: 700, color: '#059669' }}>
+                        Rp {fee.toLocaleString('id-ID')}
+                      </td>
                       <td style={{ fontSize: '0.825rem', color: '#64748b' }}>{att.notes || '-'}</td>
                     </tr>
                   );

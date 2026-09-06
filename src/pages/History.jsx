@@ -105,14 +105,29 @@ const History = () => {
         responseType: 'blob'
       });
 
+      const fileExt = format === 'excel' ? 'xlsx' : format;
       const mimeType = format === 'pdf' ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
+      let filename = `riwayat_${historyTab}_${new Date().toISOString().split('T')[0]}.${fileExt}`;
+      const disposition = response.headers && (response.headers['content-disposition'] || response.headers['Content-Disposition']);
+      if (disposition) {
+        const filenameMatch = disposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+        if (filenameMatch && filenameMatch[1]) {
+          filename = filenameMatch[1].replace(/['"]/g, '');
+        }
+      }
+      if (filename.endsWith('.excel')) {
+        filename = filename.replace(/\.excel$/, '.xlsx');
+      }
+
       const blobUrl = window.URL.createObjectURL(new Blob([response.data], { type: mimeType }));
       const link = document.createElement('a');
       link.href = blobUrl;
-      link.setAttribute('download', `riwayat_${historyTab}_${new Date().toISOString().split('T')[0]}.${format}`);
+      link.setAttribute('download', filename);
       document.body.appendChild(link);
       link.click();
       link.remove();
+      window.URL.revokeObjectURL(blobUrl);
     } catch (err) {
       alert(`Gagal mengeksport berkas ${format}.`);
     }
@@ -282,14 +297,12 @@ const History = () => {
             >
               👨‍🏫 Riwayat Absensi Guru Les
             </button>
-            {isAdmin && (
-              <button
-                className={`tab-btn ${historyTab === 'students' ? 'active' : ''}`}
-                onClick={() => setHistoryTab('students')}
-              >
-                🎓 Riwayat Absensi Murid Les
-              </button>
-            )}
+            <button
+              className={`tab-btn ${historyTab === 'students' ? 'active' : ''}`}
+              onClick={() => setHistoryTab('students')}
+            >
+              🎓 Riwayat Absensi Murid Les
+            </button>
           </div>
 
           {/* Filters Bar */}
@@ -360,12 +373,25 @@ const History = () => {
             {isAdmin && (
               <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.75rem' }}>
                 <span className="badge badge-emerald" style={{ fontSize: '0.825rem', padding: '0.4rem 0.8rem' }}>
-                  💵 Total Gaji Guru Periode Ini: Rp {attendances.reduce((sum, item) => {
-                    const fee = (item.tutor_fee_per_session && parseFloat(item.tutor_fee_per_session) > 0)
-                      ? parseFloat(item.tutor_fee_per_session)
-                      : (item.lesCategory?.tutor_fee_per_session || item.les_category?.tutor_fee_per_session || 15000);
-                    return sum + parseFloat(fee);
-                  }, 0).toLocaleString('id-ID')}
+                  {historyTab === 'students' ? (
+                    <>
+                      💰 Total Tarif Biaya Les Murid Periode Ini: Rp {attendances.reduce((sum, item) => {
+                        const fee = (item.fee_per_session && parseFloat(item.fee_per_session) > 0)
+                          ? parseFloat(item.fee_per_session)
+                          : (item.lesCategory?.fee_per_session || item.les_category?.fee_per_session || 15000);
+                        return sum + parseFloat(fee);
+                      }, 0).toLocaleString('id-ID')}
+                    </>
+                  ) : (
+                    <>
+                      💵 Total Gaji Guru Periode Ini: Rp {attendances.reduce((sum, item) => {
+                        const fee = (item.tutor_fee_per_session && parseFloat(item.tutor_fee_per_session) > 0)
+                          ? parseFloat(item.tutor_fee_per_session)
+                          : (item.lesCategory?.tutor_fee_per_session || item.les_category?.tutor_fee_per_session || 15000);
+                        return sum + parseFloat(fee);
+                      }, 0).toLocaleString('id-ID')}
+                    </>
+                  )}
                 </span>
               </div>
             )}
@@ -380,9 +406,9 @@ const History = () => {
                     <th>Kategori Les</th>
                     <th>Mata Pelajaran</th>
                     <th>Durasi</th>
-                    {isAdmin && <th>Gaji Guru (Honor)</th>}
+                    <th>{historyTab === 'students' ? 'Tarif Biaya Les per Sesi' : 'Gaji Guru (Honor)'}</th>
                     <th>Catatan</th>
-                    {isAdmin && <th style={{ textAlign: 'center' }}>Aksi</th>}
+                    <th style={{ textAlign: 'center' }}>Aksi</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -390,6 +416,10 @@ const History = () => {
                     const tutorFee = (att.tutor_fee_per_session && parseFloat(att.tutor_fee_per_session) > 0)
                       ? parseFloat(att.tutor_fee_per_session)
                       : parseFloat(att.lesCategory?.tutor_fee_per_session || att.les_category?.tutor_fee_per_session || 15000);
+
+                    const studentFee = (att.fee_per_session && parseFloat(att.fee_per_session) > 0)
+                      ? parseFloat(att.fee_per_session)
+                      : parseFloat(att.lesCategory?.fee_per_session || att.les_category?.fee_per_session || 15000);
 
                     return (
                       <tr key={att.id}>
@@ -403,33 +433,31 @@ const History = () => {
                         </td>
                         <td>{att.subject || '-'}</td>
                         <td>{att.duration_minutes} Menit</td>
-                        {isAdmin && (
-                          <td style={{ fontWeight: 700, color: '#059669' }}>
-                            Rp {tutorFee.toLocaleString('id-ID')}
-                          </td>
-                        )}
+                        <td style={{ fontWeight: 700, color: historyTab === 'students' ? '#2563eb' : '#059669' }}>
+                          Rp {(historyTab === 'students' ? studentFee : tutorFee).toLocaleString('id-ID')}
+                        </td>
                         <td style={{ fontSize: '0.825rem', color: '#64748b' }}>{att.notes || '-'}</td>
-                    {isAdmin && (
-                      <td style={{ textAlign: 'center' }}>
-                        <div style={{ display: 'inline-flex', gap: '0.4rem' }}>
-                          <button
-                            onClick={() => handleOpenFormModal(att)}
-                            className="btn btn-secondary btn-sm"
-                            title="Edit Data Riwayat"
-                          >
-                            <Edit2 size={14} color="#2563eb" />
-                            <span>Edit</span>
-                          </button>
-                          <button
-                            onClick={() => handleDeleteRequest(att)}
-                            className="btn btn-danger btn-sm"
-                            title="Hapus Data Riwayat"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                      </td>
-                    )}
+                        <td style={{ textAlign: 'center' }}>
+                          <div style={{ display: 'inline-flex', gap: '0.4rem' }}>
+                            <button
+                              onClick={() => handleOpenFormModal(att)}
+                              className="btn btn-secondary btn-sm"
+                              title="Edit Data Riwayat"
+                            >
+                              <Edit2 size={14} color="#2563eb" />
+                              <span>Edit</span>
+                            </button>
+                            {isAdmin && (
+                              <button
+                                onClick={() => handleDeleteRequest(att)}
+                                className="btn btn-danger btn-sm"
+                                title="Hapus Data Riwayat"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            )}
+                          </div>
+                        </td>
                     </tr>
                     );
                   })}
@@ -440,13 +468,12 @@ const History = () => {
         )}
       </div>
 
-      {/* Admin Form Modal (Tambah / Edit Riwayat Absensi) */}
-      {isAdmin && (
-        <Modal
-          isOpen={showFormModal}
-          onClose={() => setShowFormModal(false)}
-          title={editingAttendance ? '✏️ Edit Data Riwayat Absensi Les' : '➕ Catat Presensi Mengajar Guru'}
-        >
+      {/* Form Modal (Tambah / Edit Riwayat Absensi) */}
+      <Modal
+        isOpen={showFormModal}
+        onClose={() => setShowFormModal(false)}
+        title={editingAttendance ? '✏️ Edit Data Riwayat Absensi Les' : '➕ Catat Presensi Mengajar Guru'}
+      >
           <form onSubmit={handleSaveForm}>
             <div className="grid-2">
               {/* Input Nama Guru */}
@@ -560,7 +587,6 @@ const History = () => {
             </div>
           </form>
         </Modal>
-      )}
 
       {/* Delete Confirmation Modal (Filament Style) */}
       <Modal
